@@ -1,5 +1,6 @@
 const express = require('express')
 const bodyParser = require('body-parser')
+const { ObjectID } = require('mongodb')
 
 // eslint-disable-next-line no-unused-vars
 const { mongoose } = require('./db/mongoose')
@@ -30,9 +31,22 @@ app.get('/todos', (req, res) => {
   })
 })
 
+app.get('/todos/:id', (req, res) => {
+  const id = req.params.id
+  if (!ObjectID.isValid(id)) {
+    res.status(404).send()
+  }
+
+  Todo.findById(id).then((todo) => {
+    if (!todo) {
+      res.status(404).send()
+    }
+    res.send({ todo })
+  }).catch(e => res.status(400).send(e.message))
+})
+
 if (!module.parent) {
   app.listen(3000, () => {
-    // eslint-disable-next-line no-console
     console.log('App started on port 3000')
   })
 }
