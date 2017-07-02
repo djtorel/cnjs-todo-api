@@ -34,14 +34,15 @@ app.get('/todos', (req, res) => {
 app.get('/todos/:id', (req, res) => {
   const id = req.params.id
   if (!ObjectID.isValid(id)) {
-    res.status(404).send()
+    return res.sendStatus(404)
   }
 
   Todo.findById(id).then((todo) => {
     if (!todo) {
-      res.status(404).send()
+      return res.sendStatus(404)
     }
-    res.send({ todo })
+    return res.status(200).send({ todo })
+    // eslint-disable-next-line no-unused-vars
   }).catch(e => res.status(400).send(e.message))
 })
 
