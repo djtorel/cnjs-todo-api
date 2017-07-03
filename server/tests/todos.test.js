@@ -5,15 +5,18 @@ const request = require('supertest').agent(app.listen())
 const { ObjectID } = require('mongodb')
 
 const { Todo } = require('../models/todo')
-const { todos, populateTodos } = require('./seed/seed')
+const { User } = require('../models/user')
+const { todos, populateTodos, users, populateUsers } = require('./seed/seed')
 
 describe('Testing todo routes', () => {
   beforeEach(populateTodos)
+  before(populateUsers)
   describe('POST /todos', () => {
     it('should create a new todo', (done) => {
       const text = 'Test todo text'
       request
         .post('/todos')
+        .set('x-auth', users[0].tokens[0].token)
         .send({ text })
         .expect(200)
         .expect((res) => {
@@ -35,6 +38,7 @@ describe('Testing todo routes', () => {
     it('should not create todo with invalid body data', (done) => {
       request
         .post('/todos')
+        .set('x-auth', users[0].tokens[0].token)
         .send({})
         .expect(400)
         .end((err) => {
@@ -54,9 +58,10 @@ describe('Testing todo routes', () => {
     it('should get all todos', (done) => {
       request
         .get('/todos')
+        .set('x-auth', users[0].tokens[0].token)
         .expect(200)
         .expect((res) => {
-          expect(res.body.todos.length).toBe(2)
+          expect(res.body.todos.length).toBe(1)
         })
         .end(done)
     })
@@ -66,6 +71,7 @@ describe('Testing todo routes', () => {
     it('should return todo doc', (done) => {
       request
         .get(`/todos/${todos[0]._id.toHexString()}`)
+        .set('x-auth', users[0].tokens[0].token)
         .expect(200)
         .expect((res) => {
           expect(res.body.todo.text).toBe(todos[0].text)
@@ -73,9 +79,18 @@ describe('Testing todo routes', () => {
         .end(done)
     })
 
+    it('should not return todo doc created by other user', (done) => {
+      request
+        .get(`/todos/${todos[1]._id.toHexString()}`)
+        .set('x-auth', users[0].tokens[0].token)
+        .expect(404)
+        .end(done)
+    })
+
     it('should return 404 if todo not found', (done) => {
       request
         .get(`/todos/${new ObjectID()}`)
+        .set('x-auth', users[0].tokens[0].token)
         .expect(404)
         .end(done)
     })
@@ -83,6 +98,7 @@ describe('Testing todo routes', () => {
     it('should return 404 for non-object ids', (done) => {
       request
         .get('/todos/123')
+        .set('x-auth', users[0].tokens[0].token)
         .expect(404)
         .end(done)
     })
@@ -94,6 +110,7 @@ describe('Testing todo routes', () => {
 
       request
         .delete(`/todos/${hexId}`)
+        .set('x-auth', users[1].tokens[0].token)
         .expect(200)
         .expect((res) => {
           expect(res.body.todo._id).toBe(hexId)
@@ -109,9 +126,30 @@ describe('Testing todo routes', () => {
           }).catch(e => done(e))
         })
     })
+
+    it('should not remove a todo from other user', (done) => {
+      const hexId = todos[0]._id.toHexString()
+
+      request
+        .delete(`/todos/${hexId}`)
+        .set('x-auth', users[1].tokens[0].token)
+        .expect(404)
+        .end((err) => {
+          if (err) {
+            return done(err)
+          }
+
+          Todo.findById(hexId).then((todo) => {
+            expect(todo).toExist()
+            done()
+          }).catch(e => done(e))
+        })
+    })
+
     it('should return 404 if todo not found', (done) => {
       request
         .delete(`/todos/${new ObjectID()}`)
+        .set('x-auth', users[1].tokens[0].token)
         .expect(404)
         .end(done)
     })
@@ -119,6 +157,7 @@ describe('Testing todo routes', () => {
     it('should return 404 if object id is invalid', (done) => {
       request
         .delete('/todos/123')
+        .set('x-auth', users[1].tokens[0].token)
         .expect(404)
         .end(done)
     })
@@ -130,6 +169,7 @@ describe('Testing todo routes', () => {
       const updateTodo = { text: 'Updated first todo', completed: true }
       request
         .patch(`/todos/${id}`)
+        .set('x-auth', users[0].tokens[0].token)
         .send(updateTodo)
         .expect(200)
         .expect((res) => {
@@ -140,12 +180,35 @@ describe('Testing todo routes', () => {
         .end(done)
     })
 
+    it('should not update the todo of other user', (done) => {
+      const id = todos[0]._id.toHexString()
+      const updateTodo = { text: 'Updated first todo', completed: true }
+      request
+        .patch(`/todos/${id}`)
+        .set('x-auth', users[1].tokens[0].token)
+        .send(updateTodo)
+        .expect(404)
+        .end((err) => {
+          if (err) {
+            return done(err)
+          }
+
+          Todo.findById(id).then((todo) => {
+            expect(todo.text).toNotBe(updateTodo.text)
+            expect(todo.completed).toNotBe(true)
+            expect(todo.completedAt).toNotExist()
+            done()
+          }).catch(e => done(e))
+        })
+    })
+
     it('should clear completedAt when todo is not completed', (done) => {
       const id = todos[1]._id.toHexString()
       const updateTodo = { text: 'Updated second todo', completed: false }
 
       request
         .patch(`/todos/${id}`)
+        .set('x-auth', users[1].tokens[0].token)
         .send(updateTodo)
         .expect(200)
         .expect((res) => {
