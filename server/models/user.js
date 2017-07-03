@@ -32,6 +32,7 @@ const UserSchema = new mongoose.Schema({
   }],
 })
 
+// eslint-disable-next-line func-names
 UserSchema.methods.toJSON = function () {
   const user = this
   const userObject = user.toObject()
@@ -48,6 +49,24 @@ UserSchema.methods.generateAuthToken = function () {
   user.tokens.push({ access, token })
 
   return user.save().then(() => token)
+}
+
+// eslint-disable-next-line func-names
+UserSchema.statics.findByToken = function (token) {
+  const User = this
+  let decoded
+
+  try {
+    decoded = jwt.verify(token, 'abc123')
+  } catch (e) {
+    return Promise.reject({ name: 'HTTP Error 401', message: 'Unauthorized: Access is denied due to invalid credentials' })
+  }
+
+  return User.findOne({
+    _id: decoded._id,
+    'tokens.token': token,
+    'tokens.access': 'auth',
+  })
 }
 
 const User = mongoose.model('User', UserSchema)
