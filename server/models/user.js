@@ -53,6 +53,7 @@ UserSchema.methods.generateAuthToken = function () {
   return user.save().then(() => token)
 }
 
+// eslint-disable-next-line func-names
 UserSchema.methods.removeToken = function (token) {
   const user = this
 

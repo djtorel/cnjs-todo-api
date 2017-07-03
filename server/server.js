@@ -89,7 +89,7 @@ app.patch('/todos/:id', authenticate, (req, res) => {
         return res.sendStatus(404)
       }
       return res.send({ todo })
-  }).catch(e => res.status(400).send({ type: e.name, message: e.message }))
+    }).catch(e => res.status(400).send({ type: e.name, message: e.message }))
 })
 
 app.post('/users', (req, res) => {

@@ -5,7 +5,6 @@ const request = require('supertest').agent(app.listen())
 const { ObjectID } = require('mongodb')
 
 const { Todo } = require('../models/todo')
-const { User } = require('../models/user')
 const { todos, populateTodos, users, populateUsers } = require('./seed/seed')
 
 describe('Testing todo routes', () => {
