@@ -8,7 +8,7 @@ const { ObjectID } = require('mongodb')
 // eslint-disable-next-line no-unused-vars
 const { mongoose } = require('./db/mongoose')
 const { Todo } = require('./models/todo')
-// const { User } = require('./models/user')
+const { User } = require('./models/user')
 
 const app = express()
 const port = process.env.PORT
@@ -47,7 +47,7 @@ app.get('/todos/:id', (req, res) => {
     }
     return res.status(200).send({ todo })
     // eslint-disable-next-line no-unused-vars
-  }).catch(e => res.status(400).send(e.message))
+  }).catch(e => res.status(400).send({ type: e.name, message: e.message }))
 })
 
 app.delete('/todos/:id', (req, res) => {
@@ -60,7 +60,7 @@ app.delete('/todos/:id', (req, res) => {
       return res.sendStatus(404)
     }
     return res.status(200).send({ todo })
-  }).catch(e => res.status(400).send(e.message))
+  }).catch(e => res.status(400).send({ type: e.name, message: e.message }))
 })
 
 app.patch('/todos/:id', (req, res) => {
@@ -83,13 +83,21 @@ app.patch('/todos/:id', (req, res) => {
       return res.sendStatus(404)
     }
     return res.send({ todo })
-  }).catch(e => res.status(400).send(e))
+  }).catch(e => res.status(400).send({ type: e.name, message: e.message }))
 })
 
-if (!module.parent) {
-  app.listen(port, () => {
-    console.log(`App started on port ${port}`)
-  })
-}
+app.post('/users', (req, res) => {
+  const body = _.pick(req.body, ['email', 'password'])
+  const user = new User(body)
+
+  user.save().then(() => user.generateAuthToken())
+  .then((token) => {
+    res.header('x-auth', token).send(user)
+  }).catch(e => res.status(400).send({ type: e.name, code: e.code, message: e.message }))
+})
+
+app.listen(port, () => {
+  console.log(`App started on port ${port}`)
+})
 
 module.exports = { app }
